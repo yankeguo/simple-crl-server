@@ -1,6 +1,10 @@
 # Build stage
 FROM golang:1.23-alpine AS builder
 
+# Use build arguments for multi-platform support
+ARG TARGETOS
+ARG TARGETARCH
+
 WORKDIR /build
 
 # Copy go mod files
@@ -13,7 +17,8 @@ RUN go mod download
 COPY main.go ./
 
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o simple-crl-server .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
+    go build -ldflags="-w -s" -o simple-crl-server .
 
 # Runtime stage
 FROM alpine:latest

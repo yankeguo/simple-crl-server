@@ -1,5 +1,8 @@
 # simple-crl-server
 
+[![Release](https://github.com/yankeguo/simple-crl-server/actions/workflows/release.yaml/badge.svg)](https://github.com/yankeguo/simple-crl-server/actions/workflows/release.yaml)
+[![License](https://img.shields.io/github/license/yankeguo/simple-crl-server)](LICENSE)
+
 A simple HTTP server that generates and serves Certificate Revocation Lists (CRL) based on a list of revoked certificates.
 
 ## Features
@@ -159,7 +162,23 @@ The server logs:
 
 ## Docker
 
-### Build Docker Image
+### Using Pre-built Image
+
+Pre-built images are automatically published to GitHub Container Registry:
+
+```bash
+# Pull latest image
+docker pull ghcr.io/yankeguo/simple-crl-server:latest
+
+# Or pull specific version
+docker pull ghcr.io/yankeguo/simple-crl-server:1.0.0
+```
+
+**Available platforms:**
+- `linux/amd64`
+- `linux/arm64`
+
+### Build Docker Image Locally
 
 ```bash
 docker build -t simple-crl-server:latest .
@@ -173,8 +192,37 @@ docker run -d \
   -v $(pwd)/tls:/app/tls:ro \
   -v $(pwd)/conf:/app/conf:ro \
   -v $(pwd)/temp:/app/temp \
-  simple-crl-server:latest
+  ghcr.io/yankeguo/simple-crl-server:latest
 ```
+
+## Release Process
+
+This project uses GitHub Actions for automated releases:
+
+### Automatic Image Publishing
+
+**On push to `main` branch:**
+- Builds Docker image for `linux/amd64` and `linux/arm64`
+- Publishes to `ghcr.io/yankeguo/simple-crl-server:latest`
+
+**On tag push (e.g., `v1.2.3`):**
+- Builds Docker image for `linux/amd64` and `linux/arm64`
+- Publishes multiple tags:
+  - `ghcr.io/yankeguo/simple-crl-server:1.2.3`
+  - `ghcr.io/yankeguo/simple-crl-server:1.2`
+  - `ghcr.io/yankeguo/simple-crl-server:1`
+
+### Creating a Release
+
+```bash
+# Tag the commit
+git tag v1.0.0
+
+# Push the tag
+git push origin v1.0.0
+```
+
+GitHub Actions will automatically build and publish the Docker image.
 
 ## Kubernetes Deployment
 
