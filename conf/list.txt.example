@@ -1,0 +1,24 @@
+# Certificate Revocation List
+# Format: [serial_number]:[epoch]:[reason]
+#
+# serial_number: Hexadecimal serial number (without 0x prefix)
+# epoch: Unix timestamp when revoked
+# reason: Revocation reason code (0-10)
+#
+# Reason codes:
+#   0 = Unspecified
+#   1 = Key Compromise
+#   2 = CA Compromise
+#   3 = Affiliation Changed
+#   4 = Superseded
+#   5 = Cessation of Operation
+#   6 = Certificate Hold
+#   8 = Remove from CRL
+#   9 = Privilege Withdrawn
+#  10 = AA Compromise
+
+# Example entries:
+# 1A2B3C4D5E6F:1704067200:1
+# 7890ABCDEF12:1704153600:0
+# FEDCBA987654:1704240000:5
+

@@ -1,0 +1,141 @@
+---
+# Secret for TLS certificate and key
+apiVersion: v1
+kind: Secret
+metadata:
+  name: crl-server-tls
+  namespace: default
+type: Opaque
+data:
+  # Base64 encoded certificate and key
+  # To create: kubectl create secret generic crl-server-tls \
+  #   --from-file=tls.crt=./tls/tls.crt \
+  #   --from-file=tls.key=./tls/tls.key
+  tls.crt: ""
+  tls.key: ""
+
+---
+# ConfigMap for revocation list
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crl-server-config
+  namespace: default
+data:
+  list.txt: |
+    # Certificate Revocation List
+    # Format: [serial_number]:[epoch]:[reason]
+    # Example:
+    # 1A2B3C4D5E6F:1704067200:1
+    # 7890ABCDEF12:1704153600:0
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crl-server
+  namespace: default
+  labels:
+    app: crl-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: crl-server
+  template:
+    metadata:
+      labels:
+        app: crl-server
+    spec:
+      containers:
+      - name: crl-server
+        image: ghcr.io/yankeguo/simple-crl-server:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        volumeMounts:
+        - name: tls
+          mountPath: /app/tls
+          readOnly: true
+        - name: config
+          mountPath: /app/conf
+          readOnly: true
+        - name: cache
+          mountPath: /app/temp
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 200m
+            memory: 128Mi
+          requests:
+            cpu: 100m
+            memory: 64Mi
+      volumes:
+      - name: tls
+        secret:
+          secretName: crl-server-tls
+          defaultMode: 0400
+      - name: config
+        configMap:
+          name: crl-server-config
+          defaultMode: 0444
+      - name: cache
+        emptyDir: {}
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: crl-server
+  namespace: default
+  labels:
+    app: crl-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: crl-server
+
+---
+# Optional: Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: crl-server
+  namespace: default
+  annotations:
+    # Add your ingress controller specific annotations here
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: crl.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: crl-server
+            port:
+              number: 80
+

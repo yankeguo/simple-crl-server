@@ -1,0 +1,38 @@
+# Binaries
+simple-crl-server
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*.test
+*.out
+
+# Directories
+temp/
+tls/
+conf/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+README.md
+LICENSE
+
+# Kubernetes
+k8s-example.yaml
+
+# Build files
+Makefile
+
