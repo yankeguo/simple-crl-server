@@ -10,6 +10,8 @@ A simple HTTP server that generates and serves Certificate Revocation Lists (CRL
 - Uses current Unix timestamp as CRL number
 - Persists cache to disk for restart resilience
 - **Hot-reload support**: Automatically reloads certificates and revocation list on each CRL generation
+- **Graceful shutdown**: Properly handles termination signals (SIGINT, SIGTERM)
+- **Health check endpoint**: `/healthz` for liveness and readiness probes
 - **Kubernetes-ready**: Perfect for deployment with Secret and ConfigMap updates
 
 ## Directory Structure
@@ -120,6 +122,30 @@ This enables seamless updates in Kubernetes environments:
 - No pod restart required
 - Changes take effect within cache duration (1 hour max)
 
+## Graceful Shutdown
+
+The server implements graceful shutdown to ensure zero-downtime deployments:
+
+**Signals Handled:**
+- `SIGINT` (Ctrl+C) - Interrupt signal
+- `SIGTERM` - Termination signal (default Kubernetes pod termination)
+
+**Shutdown Process:**
+1. Stop accepting new connections
+2. Wait for active requests to complete (up to 30 seconds)
+3. Clean up resources
+4. Exit gracefully
+
+**Example:**
+```bash
+# Send termination signal
+kill -TERM <pid>
+
+# Or press Ctrl+C
+```
+
+In Kubernetes, the pod will gracefully shutdown when terminated, ensuring all in-flight requests complete before the container stops.
+
 ## Logging
 
 The server logs:
@@ -129,6 +155,7 @@ The server logs:
 - CRL generation events
 - Warnings for invalid entries in `list.txt`
 - Cache loading events
+- Shutdown signals and graceful termination
 
 ## Docker
 

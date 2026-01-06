@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/x509"
@@ -11,10 +12,12 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -72,14 +75,50 @@ func main() {
 	// Try to load cached CRL
 	server.loadCachedCRL()
 
-	// Set up HTTP handler
-	http.HandleFunc("/", server.handleCRL)
+	// Set up HTTP handlers
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", handleHealthz)
+	mux.HandleFunc("/", server.handleCRL)
 
-	log.Println("Starting CRL server on :8080")
-	log.Println("Hot-reload enabled: certificates and revocation list will be reloaded on each CRL generation")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	// Create HTTP server
+	httpServer := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
 	}
+
+	// Start server in goroutine
+	go func() {
+		log.Println("Starting CRL server on :8080")
+		log.Println("Hot-reload enabled: certificates and revocation list will be reloaded on each CRL generation")
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	// SIGINT: Ctrl+C, SIGTERM: Kubernetes termination
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-quit
+	log.Printf("Received signal %v, shutting down server...", sig)
+
+	// Create a deadline for shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Gracefully shutdown the server
+	if err := httpServer.Shutdown(ctx); err != nil {
+		log.Printf("Server forced to shutdown: %v", err)
+		os.Exit(1)
+	}
+
+	log.Println("Server stopped gracefully")
+}
+
+func handleHealthz(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK\n"))
 }
 
 func (s *CRLServer) handleCRL(w http.ResponseWriter, r *http.Request) {
